@@ -2,11 +2,11 @@ name: Daily Commit
 
 on:
   schedule:
-    - cron: "0 7 * * *" 
+    - cron: "0 6 * * *" # 6:00 AM
+    - cron: "0 12 * * *" # 12:00 PM
+    - cron: "0 18 * * *" # 6:00 PM
+    - cron: "0 22 * * *" # 10:00 PM
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   commit-job:
@@ -14,14 +14,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Update activity file
+      - name: Task 1 - Update file
         run: |
-          echo "Updated on $(date -u)" >> activity.log
-
-      - name: Commit changes
+          echo "Updated at $(date)" >> activity1.log
+          
+      - name: Commit changes for Task 1
         run: |
           git config --global user.name "imedkablavi"
           git config --global user.email "235509601@firat.edu.tr"
           git add .
-          git commit -m "Daily activity" || echo "No changes to commit"
+          git commit -m "Task 1 - Daily activity"
+          git push
+
+      - name: Task 2 - Update another file
+        run: |
+          echo "Another update at $(date)" >> activity2.log
+
+      - name: Commit changes for Task 2
+        run: |
+          git config --global user.name "imedkablavi"
+          git config --global user.email "235509601@firat.edu.tr"
+          git add .
+          git commit -m "Task 2 - Another update"
+          git push
+
+      - name: Task 3 - Random task
+        run: |
+          echo "Random task executed at $(date)" >> random_task.log
+
+      - name: Commit changes for Task 3
+        run: |
+          git config --global user.name "imedkablavi"
+          git config --global user.email "235509601@firat.edu.tr"
+          git add .
+          git commit -m "Task 3 - Random task"
           git push
