@@ -15,38 +15,42 @@ jobs:
   activity-job:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Pick task by hour (UTC)
-        id: t
+      - name: Get UTC hour
+        id: time
         run: echo "HOUR=$(date -u +%H)" >> $GITHUB_OUTPUT
 
-      - name: Morning log
-        if: steps.t.outputs.HOUR == '06'
-        run: echo "- Learning update $(date -u)" >> learning.log
+      - name: Morning activity
+        if: steps.time.outputs.HOUR == '06'
+        run: echo "- Learning cybersecurity $(date -u)" >> learning.log
 
-      - name: Midday log
-        if: steps.t.outputs.HOUR == '10'
-        run: echo "- Dev note $(date -u)" >> dev.log
+      - name: Midday activity
+        if: steps.time.outputs.HOUR == '10'
+        run: echo "- Development work $(date -u)" >> dev.log
 
-      - name: Evening log
-        if: steps.t.outputs.HOUR == '14'
+      - name: Evening activity
+        if: steps.time.outputs.HOUR == '14'
         run: echo "- New idea $(date -u)" >> ideas.log
 
-      - name: Night log
-        if: steps.t.outputs.HOUR == '20'
+      - name: Night activity
+        if: steps.time.outputs.HOUR == '20'
         run: echo "- Daily summary $(date -u)" >> summary.log
 
-      - name: Commit & push (uses GITHUB_TOKEN)
+      # 🔴 هذا هو الحل
+      - name: Fallback activity (always runs)
+        run: |
+          echo "- Automated heartbeat $(date -u)" >> heartbeat.log
+
+      - name: Commit & push safely
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Automated activity" || exit 0
+          git commit -m "Smart automated activity" || exit 0
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
