@@ -1,51 +1,52 @@
-name: Daily Commit
+name: Smart Daily Activity
 
 on:
   schedule:
-    - cron: "0 6 * * *" # 6:00 AM
-    - cron: "0 12 * * *" # 12:00 PM
-    - cron: "0 18 * * *" # 6:00 PM
-    - cron: "0 22 * * *" # 10:00 PM
+    - cron: "0 6 * * *"   # 09:00 TR
+    - cron: "0 10 * * *"  # 13:00 TR
+    - cron: "0 14 * * *"  # 17:00 TR
+    - cron: "0 20 * * *"  # 23:00 TR
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  commit-job:
+  activity-job:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
 
-      - name: Task 1 - Update file
-        run: |
-          echo "Updated at $(date)" >> activity1.log
-          
-      - name: Commit changes for Task 1
-        run: |
-          git config --global user.name "imedkablavi"
-          git config --global user.email "235509601@firat.edu.tr"
-          git add .
-          git commit -m "Task 1 - Daily activity"
-          git push
+      - name: Pick task by hour (UTC)
+        id: t
+        run: echo "HOUR=$(date -u +%H)" >> $GITHUB_OUTPUT
 
-      - name: Task 2 - Update another file
-        run: |
-          echo "Another update at $(date)" >> activity2.log
+      - name: Morning log
+        if: steps.t.outputs.HOUR == '06'
+        run: echo "- Learning update $(date -u)" >> learning.log
 
-      - name: Commit changes for Task 2
-        run: |
-          git config --global user.name "imedkablavi"
-          git config --global user.email "235509601@firat.edu.tr"
-          git add .
-          git commit -m "Task 2 - Another update"
-          git push
+      - name: Midday log
+        if: steps.t.outputs.HOUR == '10'
+        run: echo "- Dev note $(date -u)" >> dev.log
 
-      - name: Task 3 - Random task
-        run: |
-          echo "Random task executed at $(date)" >> random_task.log
+      - name: Evening log
+        if: steps.t.outputs.HOUR == '14'
+        run: echo "- New idea $(date -u)" >> ideas.log
 
-      - name: Commit changes for Task 3
+      - name: Night log
+        if: steps.t.outputs.HOUR == '20'
+        run: echo "- Daily summary $(date -u)" >> summary.log
+
+      - name: Commit & push (uses GITHUB_TOKEN)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config --global user.name "imedkablavi"
-          git config --global user.email "235509601@firat.edu.tr"
-          git add .
-          git commit -m "Task 3 - Random task"
-          git push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Automated activity" || exit 0
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
