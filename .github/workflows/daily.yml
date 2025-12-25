@@ -2,55 +2,85 @@ name: Smart Daily Activity
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # 09:00 TR
-    - cron: "0 10 * * *"  # 13:00 TR
-    - cron: "0 14 * * *"  # 17:00 TR
-    - cron: "0 20 * * *"  # 23:00 TR
+    # 09:00 و 21:00 بتوقيت تركيا (UTC+3)
+    - cron: "0 6 * * *"
+    - cron: "0 18 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  activity-job:
+  smart-activity:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Get UTC hour
-        id: time
-        run: echo "HOUR=$(date -u +%H)" >> $GITHUB_OUTPUT
-
-      - name: Morning activity
-        if: steps.time.outputs.HOUR == '06'
-        run: echo "- Learning cybersecurity $(date -u)" >> learning.log
-
-      - name: Midday activity
-        if: steps.time.outputs.HOUR == '10'
-        run: echo "- Development work $(date -u)" >> dev.log
-
-      - name: Evening activity
-        if: steps.time.outputs.HOUR == '14'
-        run: echo "- New idea $(date -u)" >> ideas.log
-
-      - name: Night activity
-        if: steps.time.outputs.HOUR == '20'
-        run: echo "- Daily summary $(date -u)" >> summary.log
-
-      # 🔴 هذا هو الحل
-      - name: Fallback activity (always runs)
+      - name: Generate smart activity
         run: |
-          echo "- Automated heartbeat $(date -u)" >> heartbeat.log
+          PROJECT="${GITHUB_REPOSITORY##*/}"
+          DAY="$(date -u +%A)"
+          WEEK="$(date -u +%V)"
+          DATE="$(date -u)"
+          FILE="activity-week-${WEEK}.log"
+          COUNTER_FILE=".run-counter"
 
-      - name: Commit & push safely
+          # 🔢 Run counter
+          if [ ! -f "$COUNTER_FILE" ]; then echo "0" > $COUNTER_FILE; fi
+          RUN_COUNT=$(($(cat $COUNTER_FILE) + 1))
+          echo "$RUN_COUNT" > $COUNTER_FILE
+
+          # 🧠 Commit-based status
+          COMMITS=$(git rev-list --count HEAD)
+          if [ "$COMMITS" -lt 20 ]; then
+            STATUS="Early Development"
+            TAG="research"
+          elif [ "$COMMITS" -lt 100 ]; then
+            STATUS="Active Development"
+            TAG="dev"
+          else
+            STATUS="Stabilization & Cleanup"
+            TAG="cleanup"
+          fi
+
+          # 📈 Weekly summary (Sunday only)
+          SUMMARY=""
+          if [ "$DAY" = "Sunday" ]; then
+            WEEK_COMMITS=$(git rev-list --count --since="7 days ago" HEAD)
+            SUMMARY="Weekly commits: $WEEK_COMMITS"
+          fi
+
+          # 🔐 Hash signature
+          SIGN_DATA="$PROJECT|$STATUS|$RUN_COUNT|$DATE"
+          HASH=$(echo "$SIGN_DATA" | sha256sum | cut -d' ' -f1)
+
+          echo "" >> $FILE
+          echo "████████████████████████████████████" >> $FILE
+          echo "█   SMART ACTIVITY SYSTEM v1.0     █" >> $FILE
+          echo "████████████████████████████████████" >> $FILE
+          echo " Project : $PROJECT" >> $FILE
+          echo " Status  : $STATUS" >> $FILE
+          echo " Tag     : #$TAG" >> $FILE
+          echo " Commits : $COMMITS" >> $FILE
+          echo " Run     : #$RUN_COUNT" >> $FILE
+          echo " Day     : $DAY" >> $FILE
+          echo " Week    : #$WEEK" >> $FILE
+          echo " Time    : $DATE" >> $FILE
+          [ -n "$SUMMARY" ] && echo " Summary : $SUMMARY" >> $FILE
+          echo " Hash    : $HASH" >> $FILE
+          echo " Signature: imedkablavi" >> $FILE
+          echo "████████████████████████████████████" >> $FILE
+
+      - name: Commit & push
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "imedkablavi"
           git config user.email "76208805+imedkablavi@users.noreply.github.com"
-          git add -A
-          git commit -m "Smart automated activity" || exit 0
+          git add .
+          git commit -m "chore: smart automated activity system" || exit 0
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
