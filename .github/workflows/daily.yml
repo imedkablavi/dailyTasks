@@ -2,9 +2,8 @@ name: Smart Daily Activity
 
 on:
   schedule:
-    # 09:00 و 21:00 بتوقيت تركيا (UTC+3)
-    - cron: "0 6 * * *"
-    - cron: "0 18 * * *"
+    
+    - cron: "0 22,2,6,10,14,18 * * *"
   workflow_dispatch:
 
 permissions:
@@ -22,17 +21,20 @@ jobs:
 
       - name: Generate smart activity
         run: |
+          set -e
+
           PROJECT="${GITHUB_REPOSITORY##*/}"
           DAY="$(date -u +%A)"
           WEEK="$(date -u +%V)"
-          DATE="$(date -u)"
+          DATE="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
           FILE="activity-week-${WEEK}.log"
           COUNTER_FILE=".run-counter"
 
           # 🔢 Run counter
-          if [ ! -f "$COUNTER_FILE" ]; then echo "0" > $COUNTER_FILE; fi
-          RUN_COUNT=$(($(cat $COUNTER_FILE) + 1))
-          echo "$RUN_COUNT" > $COUNTER_FILE
+          if [ ! -f "$COUNTER_FILE" ]; then echo "0" > "$COUNTER_FILE"; fi
+          RUN_COUNT=$(($(cat "$COUNTER_FILE") + 1))
+          echo "$RUN_COUNT" > "$COUNTER_FILE"
 
           # 🧠 Commit-based status
           COMMITS=$(git rev-list --count HEAD)
@@ -58,22 +60,24 @@ jobs:
           SIGN_DATA="$PROJECT|$STATUS|$RUN_COUNT|$DATE"
           HASH=$(echo "$SIGN_DATA" | sha256sum | cut -d' ' -f1)
 
-          echo "" >> $FILE
-          echo "████████████████████████████████████" >> $FILE
-          echo "█   SMART ACTIVITY SYSTEM v1.0     █" >> $FILE
-          echo "████████████████████████████████████" >> $FILE
-          echo " Project : $PROJECT" >> $FILE
-          echo " Status  : $STATUS" >> $FILE
-          echo " Tag     : #$TAG" >> $FILE
-          echo " Commits : $COMMITS" >> $FILE
-          echo " Run     : #$RUN_COUNT" >> $FILE
-          echo " Day     : $DAY" >> $FILE
-          echo " Week    : #$WEEK" >> $FILE
-          echo " Time    : $DATE" >> $FILE
-          [ -n "$SUMMARY" ] && echo " Summary : $SUMMARY" >> $FILE
-          echo " Hash    : $HASH" >> $FILE
-          echo " Signature: imedkablavi" >> $FILE
-          echo "████████████████████████████████████" >> $FILE
+          {
+            echo ""
+            echo "████████████████████████████████████"
+            echo "█   SMART ACTIVITY SYSTEM v1.1     █"
+            echo "████████████████████████████████████"
+            echo " Project : $PROJECT"
+            echo " Status  : $STATUS"
+            echo " Tag     : #$TAG"
+            echo " Commits : $COMMITS"
+            echo " Run     : #$RUN_COUNT"
+            echo " Day     : $DAY"
+            echo " Week    : #$WEEK"
+            echo " Time    : $DATE"
+            [ -n "$SUMMARY" ] && echo " Summary : $SUMMARY"
+            echo " Hash    : $HASH"
+            echo " Signature: imedkablavi"
+            echo "████████████████████████████████████"
+          } >> "$FILE"
 
       - name: Commit & push
         env:
@@ -81,6 +85,13 @@ jobs:
         run: |
           git config user.name "imedkablavi"
           git config user.email "76208805+imedkablavi@users.noreply.github.com"
+
           git add .
-          git commit -m "chore: smart automated activity system" || exit 0
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: smart automated activity system"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
