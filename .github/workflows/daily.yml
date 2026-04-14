@@ -1,9 +1,8 @@
-name: Smart Daily Activity
+name: Smart Real Activity System
 
 on:
   schedule:
-    
-    - cron: "0 22,2,6,10,14,18 * * *"
+    - cron: "0 12 * * *" # مرة يومياً
   workflow_dispatch:
 
 permissions:
@@ -16,82 +15,90 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
           fetch-depth: 0
 
-      - name: Generate smart activity
-        run: |
-          set -e
-
-          PROJECT="${GITHUB_REPOSITORY##*/}"
-          DAY="$(date -u +%A)"
-          WEEK="$(date -u +%V)"
-          DATE="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-
-          FILE="activity-week-${WEEK}.log"
-          COUNTER_FILE=".run-counter"
-
-          # 🔢 Run counter
-          if [ ! -f "$COUNTER_FILE" ]; then echo "0" > "$COUNTER_FILE"; fi
-          RUN_COUNT=$(($(cat "$COUNTER_FILE") + 1))
-          echo "$RUN_COUNT" > "$COUNTER_FILE"
-
-          # 🧠 Commit-based status
-          COMMITS=$(git rev-list --count HEAD)
-          if [ "$COMMITS" -lt 20 ]; then
-            STATUS="Early Development"
-            TAG="research"
-          elif [ "$COMMITS" -lt 100 ]; then
-            STATUS="Active Development"
-            TAG="dev"
-          else
-            STATUS="Stabilization & Cleanup"
-            TAG="cleanup"
-          fi
-
-          # 📈 Weekly summary (Sunday only)
-          SUMMARY=""
-          if [ "$DAY" = "Sunday" ]; then
-            WEEK_COMMITS=$(git rev-list --count --since="7 days ago" HEAD)
-            SUMMARY="Weekly commits: $WEEK_COMMITS"
-          fi
-
-          # 🔐 Hash signature
-          SIGN_DATA="$PROJECT|$STATUS|$RUN_COUNT|$DATE"
-          HASH=$(echo "$SIGN_DATA" | sha256sum | cut -d' ' -f1)
-
-          {
-            echo ""
-            echo "████████████████████████████████████"
-            echo "█   SMART ACTIVITY SYSTEM v1.1     █"
-            echo "████████████████████████████████████"
-            echo " Project : $PROJECT"
-            echo " Status  : $STATUS"
-            echo " Tag     : #$TAG"
-            echo " Commits : $COMMITS"
-            echo " Run     : #$RUN_COUNT"
-            echo " Day     : $DAY"
-            echo " Week    : #$WEEK"
-            echo " Time    : $DATE"
-            [ -n "$SUMMARY" ] && echo " Summary : $SUMMARY"
-            echo " Hash    : $HASH"
-            echo " Signature: imedkablavi"
-            echo "████████████████████████████████████"
-          } >> "$FILE"
-
-      - name: Commit & push
+      - name: Smart activity enhancer
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -e
+
           git config user.name "imedkablavi"
           git config user.email "76208805+imedkablavi@users.noreply.github.com"
+
+          echo "🔍 Checking recent real activity..."
+
+          # 📅 آخر commit
+          LAST_COMMIT_TIME=$(git log -1 --format=%ct)
+          CURRENT_TIME=$(date +%s)
+
+          DIFF_TIME=$((CURRENT_TIME - LAST_COMMIT_TIME))
+          HOURS=$((DIFF_TIME / 3600))
+
+          echo "Last commit was $HOURS hours ago"
+
+          # ❌ إذا ما في نشاط جديد
+          if [ "$HOURS" -lt 12 ]; then
+            echo "Recent activity detected → skip enhancement"
+            exit 0
+          fi
+
+          # 🔍 احسب التغييرات الفعلية
+          git pull origin main || true
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No new changes → skip"
+            exit 0
+          fi
+
+          # 📊 حجم التغييرات
+          CHANGES=$(git diff --shortstat | awk '{print $4 + $6}')
+          FILES=$(git diff --name-only | wc -l)
+
+          echo "Changes: $CHANGES lines | Files: $FILES"
+
+          # ❌ فلترة
+          if [ "$CHANGES" -lt 5 ] || [ "$FILES" -lt 2 ]; then
+            echo "Changes too small → skip"
+            exit 0
+          fi
+
+          # 🎲 randomness
+          R=$((RANDOM % 100))
+          if [ "$R" -gt 75 ]; then
+            echo "Random skip for realism"
+            exit 0
+          fi
+
+          # 🧠 نوع الرسالة
+          if [ "$CHANGES" -gt 80 ]; then
+            MSG="feat: expand functionality ($CHANGES lines)"
+          elif [ "$CHANGES" -gt 40 ]; then
+            MSG="improve: refine system behavior ($CHANGES lines)"
+          else
+            MSG="chore: minor adjustments ($CHANGES lines)"
+          fi
+
+          # 🕒 تأخير عشوائي
+          DELAY=$((RANDOM % 180))
+          echo "Sleeping for $DELAY minutes..."
+          sleep $((DELAY * 60))
+
+          # 📝 تحديث ذكي (ملف activity فقط إذا في سبب)
+          WEEK=$(date -u +%V)
+          FILE="activity-week-${WEEK}.log"
+
+          echo "Update: $(date -u)" >> "$FILE"
 
           git add .
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "Nothing to commit"
             exit 0
           fi
 
-          git commit -m "chore: smart automated activity system"
+          git commit -m "$MSG"
+
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
+
+          echo "✅ Smart enhancement committed"
